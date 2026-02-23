@@ -6,6 +6,9 @@ from app.rag.generator import generate_answer
 from app.ingestion.loader import DocumentLoader
 from pathlib import Path
 from app.ingestion.chunker import TextChunker
+from app.models.embedding_model import EmbeddingModel
+from app.ingestion.embedder import TextEmbedder
+
 
 import shutil
 import os
@@ -30,8 +33,12 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def startup_event():
         logger.info("Starting RAG Document Q&A API...")
-        logger.info("System initialized successfully.")
 
+        # Load embedding model once
+        model = EmbeddingModel.load_model()
+        app.state.embedding_model = model
+
+        logger.info("System initialized successfully.")
     # -------------------------
     # Health Check
     # -------------------------
@@ -156,6 +163,24 @@ def create_app() -> FastAPI:
 
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
+        
+    @app.get("/test-embed/{filename}")
+    async def test_embed(filename: str):
+        file_path = UPLOAD_DIR / filename
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found.")
+
+        documents = DocumentLoader.load(file_path)
+        chunks = TextChunker.chunk_documents(documents)
+
+        model = app.state.embedding_model
+        embeddings = TextEmbedder.embed_chunks(model, chunks)
+
+        return {
+            "total_chunks": len(chunks),
+            "embedding_shape": list(embeddings.shape)
+        }
 
     return app
 
