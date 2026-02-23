@@ -8,6 +8,7 @@ from pathlib import Path
 from app.ingestion.chunker import TextChunker
 from app.models.embedding_model import EmbeddingModel
 from app.ingestion.embedder import TextEmbedder
+from app.vectorstore.faiss_store import FAISSStore
 
 
 import shutil
@@ -34,11 +35,24 @@ def create_app() -> FastAPI:
     async def startup_event():
         logger.info("Starting RAG Document Q&A API...")
 
-        # Load embedding model once
+        # Load embedding model
         model = EmbeddingModel.load_model()
         app.state.embedding_model = model
 
+        # Initialize FAISS store
+        store = FAISSStore()
+        loaded = store.load()
+
+        app.state.vector_store = store
+        app.state.index_ready = loaded
+
+        if loaded:
+            logger.info("FAISS index loaded and ready.")
+        else:
+            logger.info("No FAISS index found. Build index first.")
+
         logger.info("System initialized successfully.")
+    
     # -------------------------
     # Health Check
     # -------------------------
@@ -180,6 +194,69 @@ def create_app() -> FastAPI:
         return {
             "total_chunks": len(chunks),
             "embedding_shape": list(embeddings.shape)
+        }
+    
+    @app.get("/test-faiss/{filename}")
+    async def test_faiss(filename: str):
+        file_path = UPLOAD_DIR / filename
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found.")
+
+        documents = DocumentLoader.load(file_path)
+        chunks = TextChunker.chunk_documents(documents)
+
+        model = app.state.embedding_model
+        embeddings = TextEmbedder.embed_chunks(model, chunks)
+
+        # Initialize FAISS
+        store = FAISSStore()
+        store.create_index(embedding_dim=embeddings.shape[1])
+        store.add_embeddings(embeddings, chunks)
+
+        # Test search using first chunk as query
+        query_embedding = embeddings[0]
+        results = store.search(query_embedding, top_k=3)
+
+        return {
+            "total_chunks": len(chunks),
+            "search_results": results
+        }
+        
+    @app.post("/build-index")
+    async def build_index():
+        store = app.state.vector_store
+        model = app.state.embedding_model
+
+        if store is None or model is None:
+            raise HTTPException(status_code=500, detail="System not initialized.")
+
+        all_chunks = []
+
+        # Load all files from uploads directory
+        for file_path in UPLOAD_DIR.glob("*"):
+            try:
+                documents = DocumentLoader.load(file_path)
+                chunks = TextChunker.chunk_documents(documents)
+                all_chunks.extend(chunks)
+            except Exception as e:
+                logger.warning(f"Skipping file {file_path.name}: {str(e)}")
+
+        if not all_chunks:
+            raise HTTPException(status_code=400, detail="No valid documents found.")
+
+        embeddings = TextEmbedder.embed_chunks(model, all_chunks)
+
+        # Create fresh index
+        store.create_index(embedding_dim=embeddings.shape[1])
+        store.add_embeddings(embeddings, all_chunks)
+        store.save()
+
+        app.state.index_ready = True
+
+        return {
+            "total_chunks_indexed": len(all_chunks),
+            "message": "Index built successfully."
         }
 
     return app

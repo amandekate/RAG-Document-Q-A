@@ -6,3 +6,4 @@ httpx
 pymupdf
 python-docx
 sentence-transformers
+faiss-cpu
