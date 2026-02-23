@@ -1,12 +1,11 @@
 # Python
+venv/
 __pycache__/
 *.pyc
-.venv/
 .env
 
 # Backend Data
-backend/data/uploads/
-backend/data/index/
+backend/data/
 
 # Node
 node_modules/
