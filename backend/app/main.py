@@ -9,6 +9,7 @@ from app.ingestion.chunker import TextChunker
 from app.models.embedding_model import EmbeddingModel
 from app.ingestion.embedder import TextEmbedder
 from app.vectorstore.faiss_store import FAISSStore
+from app.rag.retriever import Retriever
 
 
 import shutil
@@ -258,6 +259,30 @@ def create_app() -> FastAPI:
             "total_chunks_indexed": len(all_chunks),
             "message": "Index built successfully."
         }
+    
+    @app.get("/test-retrieve")
+    async def test_retrieve(query: str):
+        if not app.state.index_ready:
+            raise HTTPException(status_code=400, detail="Index not ready.")
+
+        model = app.state.embedding_model
+        store = app.state.vector_store
+
+        try:
+            results = Retriever.retrieve(query, model, store)
+
+            if results is None:
+                return {
+                    "message": "No relevant information found."
+                }
+
+            return {
+                "results": results
+            }
+
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
 
     return app
 

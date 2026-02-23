@@ -33,7 +33,11 @@ class FAISSStore:
             raise RuntimeError("FAISS index not initialized.")
 
         embeddings = np.array(embeddings).astype("float32")
-
+        
+        # normalize embeddings
+        faiss.normalize_L2(embeddings)
+        
+        # add to FAISS index
         self.index.add(embeddings)
 
         for chunk in chunks:
