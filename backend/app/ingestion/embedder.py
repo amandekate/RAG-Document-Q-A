@@ -1,4 +1,5 @@
 from app.utils.logger import get_logger
+import numpy as np
 
 logger = get_logger(__name__)
 
@@ -20,4 +21,4 @@ class TextEmbedder:
         if len(embeddings) != len(chunks):
             raise RuntimeError("Embedding count mismatch.")
 
-        return embeddings
+        return np.asarray(embeddings, dtype="float32")

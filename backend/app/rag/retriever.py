@@ -1,5 +1,3 @@
-import numpy as np
-import faiss
 from app.config import SIMILARITY_THRESHOLD, TOP_K
 from app.utils.logger import get_logger
 
@@ -21,34 +19,18 @@ class Retriever:
         if store.index is None:
             raise RuntimeError("Vector index not initialized.")
 
-        # Encode query
         query_embedding = model.encode([query])[0].astype("float32")
-
-        # Convert to 2D numpy array
-        query_embedding = np.array([query_embedding])
-
-        # Normalize query embedding (must match normalized index)
-        faiss.normalize_L2(query_embedding)
-
-        # Search FAISS
-        distances, indices = store.index.search(
-            query_embedding,
-            TOP_K
-        )
+        search_results = store.search(query_embedding, TOP_K)
 
         results = []
 
-        for i, idx in enumerate(indices[0]):
-            if idx >= len(store.metadata):
-                continue
+        for item in search_results:
+            distance = item["distance"]
 
-            distance = float(distances[0][i])
-
-            # Apply similarity threshold
             if distance <= SIMILARITY_THRESHOLD:
                 results.append({
-                    "text": store.metadata[idx]["text"],
-                    "metadata": store.metadata[idx]["metadata"],
+                    "text": item["text"],
+                    "metadata": item["metadata"],
                     "distance": distance
                 })
 

@@ -27,7 +27,7 @@ class TextChunker:
             text_length = len(text)
 
             if text_length <= CHUNK_SIZE:
-                # Small document, keep as single chunk
+                # Avoid chunking if the document text fits entirely within the target size.
                 chunks.append({
                     "text": text,
                     "metadata": {

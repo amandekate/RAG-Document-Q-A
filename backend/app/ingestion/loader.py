@@ -27,9 +27,6 @@ class DocumentLoader:
         else:
             raise ValueError("Unsupported file type")
 
-    # --------------------------
-    # PDF Loader
-    # --------------------------
     @staticmethod
     def _load_pdf(file_path: Path) -> list:
         try:
@@ -61,9 +58,6 @@ class DocumentLoader:
             logger.error(f"Failed to load PDF: {str(e)}")
             raise
 
-    # --------------------------
-    # DOCX Loader
-    # --------------------------
     @staticmethod
     def _load_docx(file_path: Path) -> list:
         try:
@@ -86,9 +80,6 @@ class DocumentLoader:
             logger.error(f"Failed to load DOCX: {str(e)}")
             raise
 
-    # --------------------------
-    # TXT Loader
-    # --------------------------
     @staticmethod
     def _load_txt(file_path: Path) -> list:
         try:
